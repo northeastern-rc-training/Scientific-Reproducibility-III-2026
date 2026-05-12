@@ -210,10 +210,10 @@ Here, `/projects/myproject` on the cluster is made available inside the containe
 **Binding multiple directories at once:**
 
 ```
-apptainer exec \
+apptainer run \
   --bind /projects/myproject:/data \
   --bind /scratch/s.caplins:/scratch \
-  myimage.sif python /data/myscript.py
+  myimage.sif
 ```
 
 **Using environment variables:**
@@ -236,7 +236,7 @@ apptainer exec myimage.sif python /data/myscript.py
 
 Building a container requires root (administrator) access, which is not available on Explorer. You have two options for building containers:
 
-- **Build locally** on your own laptop or workstation (requires Docker or Apptainer installed).
+- **Build locally** on your own laptop or workstation (requires Docker or Podman or Apptainer installed).
 - **Build remotely** using the Apptainer Remote Builder or a cloud VM.
 
 ### Writing a Definition File (`.def`)
@@ -278,31 +278,83 @@ Key sections of a definition file:
 | `%labels` | Metadata (author, version, etc.) |
 | `%help` | Help text shown with `apptainer run-help` |
 
-### Building with Docker (on your laptop)
+### Building with Docker or Podman (on your laptop)
 
 [#building-with-docker](#building-with-docker)
 
-If you have Docker installed locally, you can build a Docker image and convert it to a `.sif` file:
+If you have Docker or Podman installed locally, you can build a Container image and convert it to a `.sif` file:
 
+[![drawing](images/docker_build.png)](images/docker_build.png)
+
+This requires a Dockerfile or Container file. Here is an example format for a Container file:
+
+```Dockerfile
+FROM rockylinux:9.3
+
+# Set up environment
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
+ENV CDP_VERSION="1.2.3"
+ENV INSTALL_PREFIX="/opt/cdpkit"
+
+# Update the system and install packages
+RUN dnf -y update && dnf -y install \
+    epel-release dnf-plugins-core glibc-langpack-en\
+    texlive \
+    openssh-clients \
+    gcc-c++ \
+    make \
+    python3 \
+    python3-pip \
+    vim \
+    nano \
+    wget \
+    cmake \
+    make \
+    tar \
+    qt5-qtbase-devel \
+    gcc \
+    git \
+    gcc-c++ \
+    tar \
+    boost-devel \
+    boost-python3-devel \
+    gmp-devel \
+    cairo-devel \
+    gcc-toolset-13 \
+    && dnf clean all
+
+
+# Note: There's no direct equivalent for python3-sphinx-tabs in Rocky,
+# so we're installing it via pip instead
+RUN pip install sphinx
+
+SHELL ["/bin/bash", "-c"]
+ENV PATH="/opt/rh/gcc-toolset-13/root/usr/bin:${PATH}"
+
+# Install CDPKit Python bindings
+RUN pip3 install CDPKit
+
+# Verify installation
+RUN python3 -c "import CDPL; print('CDPKit installed successfully')"
+
+CMD ["/bin/bash"]
+```
+Once your Containerfile is written you can try to build it.
 ```
 # Build a Docker image
 docker build -t myimage:1.0 .
 
+# push that image to docker hub or other repo
+
 # Convert Docker image to Apptainer .sif (requires Apptainer installed locally)
 apptainer build myimage.sif docker-daemon://myimage:1.0
+
 ```
+[![drawing](images/podman.png)](images/podman.png)
 
 Alternatively, push to Docker Hub and pull from there (see the next section).
-
-### Building with Apptainer locally
-
-[#building-with-apptainer-locally](#building-with-apptainer-locally)
-
-If you have Apptainer installed on your own machine (Linux) with root access, you can build directly from a definition file:
-
-```
-sudo apptainer build myimage.sif myimage.def
-```
 
 ### Using the Apptainer Remote Builder
 
