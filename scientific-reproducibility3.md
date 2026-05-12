@@ -374,6 +374,8 @@ apptainer build --remote myimage.sif myimage.def
 
 Once you have built or found a container image, you need to get it onto Explorer. There are a few ways to do this.
 
+[![drawing](images/docker_build.png)](images/docker_build.png)
+
 ### Pulling from Docker Hub
 
 [#pulling-from-docker-hub](#pulling-from-docker-hub)
