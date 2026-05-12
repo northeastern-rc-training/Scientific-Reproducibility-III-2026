@@ -19,11 +19,14 @@ Today this presentation will cover:
 
 [#what-is-a-container](#what-is-a-container)
 
+
+[![drawing](images/containers.jpeg)](images/containers.jpeg)
+
 A container is a lightweight, portable, self-contained unit of software that packages up an application and all its dependencies — libraries, configuration files, binaries, and runtime — into a single file or image. This means the software inside the container will behave the same way regardless of what machine it is running on.
 
-[![drawing](images/container_diagram.svg)](images/container_diagram.svg)
+[![drawing](images/lunchbox.avif)](images/lunchbox.avif)
 
-Think of a container as a sealed lunchbox: everything your application needs for lunch is already inside. It doesn't matter whose kitchen you use — the contents are the same.
+Think of a container as a sealed lunchbox: everything your application needs for lunch is already inside. It doesn't matter where you eat it (the park, a picnic table, work, school, etc) — the contents are the same.
 
 On HPC clusters like Explorer, we use **[Apptainer](https://apptainer.org/)** (formerly known as Singularity) as our container platform. Unlike Docker (which is common on laptops and cloud systems), Apptainer is designed specifically for shared HPC environments where users do not have root (administrator) privileges. Apptainer containers run with your user permissions, making them safe for multi-user clusters.
 
@@ -60,50 +63,6 @@ A `.sif` file is a single file that can be shared with collaborators, uploaded t
 **Access to community-built images**
 
 Registries like [Docker Hub](https://hub.docker.com/), [Quay.io](https://quay.io/), [NVIDIA NGC](https://catalog.ngc.nvidia.com/), and [BioContainers](https://biocontainers.pro/) host thousands of pre-built, community-maintained images for popular scientific software — saving you the effort of building from scratch.
-
-## Binding directories to your container
-
-[#binding-directories-to-your-container](#binding-directories-to-your-container)
-
-By default, a container runs in an isolated filesystem and cannot see the files on your host system (the cluster). To give your container access to data stored in your `/home`, `/scratch`, or `/projects` directories, you need to **bind** those directories into the container.
-
-This is done with the `--bind` (or `-B`) flag.
-
-**Basic syntax:**
-
-```
-apptainer exec --bind /source/on/host:/destination/in/container myimage.sif mycommand
-```
-
-**Example — binding your projects directory:**
-
-```
-apptainer exec --bind /projects/myproject:/data myimage.sif python /data/myscript.py
-```
-
-Here, `/projects/myproject` on the cluster is made available inside the container at the path `/data`.
-
-**Binding multiple directories at once:**
-
-```
-apptainer exec \
-  --bind /projects/myproject:/data \
-  --bind /scratch/s.caplins:/scratch \
-  myimage.sif python /data/myscript.py
-```
-
-**Using environment variables:**
-
-Apptainer also respects the `APPTAINER_BIND` environment variable, which can be convenient in scripts:
-
-```
-export APPTAINER_BIND="/projects/myproject:/data,/scratch/s.caplins:/scratch"
-apptainer exec myimage.sif python /data/myscript.py
-```
-
-> **Note:** Your `/home` directory is automatically bound into the container by default on Explorer. However, `/projects` and `/scratch` are **not** bound by default and must be specified explicitly. Always use absolute paths when binding.
-
-> **Tip:** If you need the same paths inside and outside the container, you can use a simplified bind with just one path: `--bind /projects/myproject` mounts it at the same path inside the container.
 
 ## How to run a container
 
@@ -230,20 +189,20 @@ apptainer exec --nv \
 
 [#binding-directories-to-your-container](#binding-directories-to-your-container)
 
-By default, a container runs in an isolated filesystem and cannot see the files on your host system (the cluster). To give your container access to data stored in your `/home`, `/scratch`, or `/projects` directories, you need to **bind** those directories into the container.
+By default, a container runs in an isolated filesystem and cannot see the files on your host system (the cluster). To give your container access to data stored in your `/scratch`, or `/projects` directories, you need to **bind** those directories into the container. Your `/home` directory is the only directory automatically bound to the container when you run it.
 
 This is done with the `--bind` (or `-B`) flag.
 
 **Basic syntax:**
 
 ```
-apptainer exec --bind /source/on/host:/destination/in/container myimage.sif mycommand
+apptainer run --bind /source/on/host:/destination/in/container myimage.sif 
 ```
 
 **Example — binding your projects directory:**
 
 ```
-apptainer exec --bind /projects/myproject:/data myimage.sif python /data/myscript.py
+apptainer run --bind /projects/myproject:/data myimage.sif
 ```
 
 Here, `/projects/myproject` on the cluster is made available inside the container at the path `/data`.
