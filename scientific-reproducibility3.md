@@ -91,22 +91,12 @@ srun --pty bash
 **Execute a single command:**
 
 ```
-apptainer exec --bind /projects/myproject:/data myimage.sif python myscript.py
-```
-
-**Open an interactive shell inside the container:**
-
-```
-apptainer shell --bind /projects/myproject:/data myimage.sif
+apptainer run --bind /projects:/projects /projects/seedpod/container/seedpod_latest.sif
 ```
 
 You will see your prompt change to `Apptainer>`, indicating you are now inside the container. Type `exit` to leave.
 
-**Run the container's default runscript:**
-
-```
-apptainer run myimage.sif
-```
+The image shown above is from this bioinformatics project called seedpod: https://github.com/northeastern-rc-internal/seedpod
 
 **Using a container in an sbatch script (CPU):**
 
@@ -123,7 +113,7 @@ apptainer run myimage.sif
 
 # Run the container
 apptainer exec \
-  --bind /projects/myproject:/data \
+  --bind /projects:/projects \
   /projects/myproject/containers/myimage.sif \
   python /data/myscript.py
 ```
@@ -145,7 +135,7 @@ Containers are especially powerful for GPU workloads because they allow you to b
 To give the container access to the host GPU, add the `--nv` flag to your Apptainer command:
 
 ```
-apptainer exec --nv --bind /projects/myproject:/data myimage.sif python train.py
+apptainer exec --nv --bind /projects:/projects myimage.sif python train.py
 ```
 
 **Interactive GPU session with a container:**
@@ -158,7 +148,7 @@ srun --partition=gpu-interactive --gres=gpu:v100-sxm2:1 \
 Once on the compute node:
 
 ```
-apptainer exec --nv --bind /projects/myproject:/data myimage.sif python train.py
+apptainer exec --nv --bind /projects:/projects myimage.sif python train.py
 ```
 
 **GPU container job via sbatch:**
@@ -176,7 +166,7 @@ apptainer exec --nv --bind /projects/myproject:/data myimage.sif python train.py
 #SBATCH --mail-type=ALL
 
 apptainer exec --nv \
-  --bind /projects/myproject:/data \
+  --bind /projects:/projects \
   /projects/myproject/containers/pytorch_image.sif \
   python /data/train.py --epochs 50 --batch-size 64
 ```
@@ -202,17 +192,17 @@ apptainer run --bind /source/on/host:/destination/in/container myimage.sif
 **Example — binding your projects directory:**
 
 ```
-apptainer run --bind /projects/myproject:/data myimage.sif
+apptainer run --bind /projects:/projects myimage.sif
 ```
 
-Here, `/projects/myproject` on the cluster is made available inside the container at the path `/data`.
+Here, `/projects` on the cluster is made available inside the container at the path `/projects`.
 
 **Binding multiple directories at once:**
 
 ```
 apptainer run \
-  --bind /projects/myproject:/data \
-  --bind /scratch/s.caplins:/scratch \
+  --bind /projects:/projects \
+  --bind /scratch:/scratch \
   myimage.sif
 ```
 
@@ -221,13 +211,11 @@ apptainer run \
 Apptainer also respects the `APPTAINER_BIND` environment variable, which can be convenient in scripts:
 
 ```
-export APPTAINER_BIND="/projects/myproject:/data,/scratch/s.caplins:/scratch"
-apptainer exec myimage.sif python /data/myscript.py
+export APPTAINER_BIND="/projects:/projects,/scratch:/scratch,/shared:/shared,/courses:/courses"
+apptainer exec -B $APPTAINER_BIND myimage.sif python /projects/myspace/myscript.py
 ```
 
 > **Note:** Your `/home` directory is automatically bound into the container by default on Explorer. However, `/projects` and `/scratch` are **not** bound by default and must be specified explicitly. Always use absolute paths when binding.
-
-> **Tip:** If you need the same paths inside and outside the container, you can use a simplified bind with just one path: `--bind /projects/myproject` mounts it at the same path inside the container.
 
 
 ## How to build a container
@@ -447,41 +435,17 @@ Or use the [OOD Files application](https://ood.explorer.northeastern.edu) to upl
 Rather than typing `--bind` every time, you can set the `APPTAINER_BIND` environment variable in your `~/.bashrc` (though note the general caution about `.bashrc` from the software module session):
 
 ```
-export APPTAINER_BIND="/projects/myproject:/data,/scratch/s.caplins:/scratch"
+export APPTAINER_BIND="/projects:/projects,/scratch/:/scratch,/shared:/shared,/courses:/courses"
 ```
 
 ### Setting a cache directory
 
 [#setting-a-cache-directory](#setting-a-cache-directory)
 
-When Apptainer pulls or builds images, it stores temporary files in a cache directory, which by default is in your `/home`. If you are pulling large images this can quickly fill your home quota. Set the cache to your `/scratch` instead:
+When Apptainer pulls or builds images, it stores temporary files in a cache directory, which by default is in your `/home`. If you are pulling large images this can quickly fill your home quota. We recommend checking your `/home` quota regularily and deleting the .apptainer cache regularily (a new .apptainer will be created by apptainer the next time you need it).
 
 ```
-export APPTAINER_CACHEDIR="/scratch/s.caplins/.apptainer_cache"
-mkdir -p $APPTAINER_CACHEDIR
-```
-
-Add this to a job script or your environment before running large pulls.
-
-### Inspecting a container
-
-[#inspecting-a-container](#inspecting-a-container)
-
-You can view the metadata and help text embedded in a container without running it:
-
-```
-apptainer inspect myimage.sif
-apptainer run-help myimage.sif
-```
-
-### Using `--cleanenv`
-
-[#using-cleanenv](#using-cleanenv)
-
-By default, Apptainer passes your shell environment variables into the container. In some cases this can cause unexpected behavior (for example, if you have conda initialized in your environment). The `--cleanenv` flag starts the container with a clean environment:
-
-```
-apptainer exec --cleanenv myimage.sif python myscript.py
+/home/s.caplins/.apptainer
 ```
 
 ### Testing your container interactively first
@@ -492,26 +456,10 @@ Before submitting a long sbatch job, always test your container interactively on
 
 ```
 srun --pty bash
-apptainer shell --bind /projects/myproject:/data myimage.sif
+apptainer shell --bind /projects:/projects myimage.sif
 # test your commands here
 exit
 ```
-
-### Overlay files for writable containers
-
-[#overlay-files-for-writable-containers](#overlay-files-for-writable-containers)
-
-By default, `.sif` container images are read-only. If you need to install additional packages or write files inside the container filesystem (rather than to a bound directory), you can use an overlay:
-
-```
-# Create a 500 MB writable overlay
-apptainer overlay create --size 500 myoverlay.img
-
-# Use it with your container
-apptainer exec --overlay myoverlay.img myimage.sif pip install newpackage
-```
-
-> **Note:** Overlay files are useful for quick experimentation, but for reproducibility we always recommend building a new container with the additional software baked in rather than relying on an overlay.
 
 ### BioContainers for bioinformatics tools
 
